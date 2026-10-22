@@ -9,54 +9,59 @@
     <!-- SheetJS (Excel出力用) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 md:p-8">
+<body class="bg-slate-100 text-slate-900 font-sans min-h-screen p-4 md:p-8 text-lg">
 
-    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
         
         <!-- ヘッダー -->
         <div class="bg-slate-900 text-white p-6">
-            <h1 class="text-2xl font-bold tracking-wide">素数探索</h1>
+            <h1 class="text-3xl font-bold tracking-wide">素数探索</h1>
         </div>
 
         <!-- タブ切り替え -->
         <div class="flex border-b border-slate-200 bg-slate-50">
-            <button id="tab1Btn" onclick="switchMode(1)" class="flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition">
+            <button id="tab1Btn" onclick="switchMode(1)" class="flex-1 py-4 font-bold text-blue-600 border-b-4 border-blue-600 transition text-xl">
                 モード1：指定数字の探索
             </button>
-            <button id="tab2Btn" onclick="switchMode(2)" class="flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition">
+            <button id="tab2Btn" onclick="switchMode(2)" class="flex-1 py-4 font-bold text-slate-500 border-b-4 border-transparent transition text-xl">
                 モード2：桁数別一括探索
             </button>
         </div>
 
-        <div class="p-6">
+        <div class="p-8">
             
             <!-- モード1: 指定数字の探索 -->
             <div id="mode1">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">数字を入力</label>
+                <div class="mb-6">
+                    <label class="block font-bold text-slate-700 mb-2">数字を入力</label>
                     <input type="text" id="numInput" placeholder="" maxlength="20"
-                           class="w-full text-xl font-mono p-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition"
+                           class="w-full text-2xl font-mono p-4 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition"
                            oninput="saveInput(this.value)">
                 </div>
 
-                <button id="m1RunBtn" onclick="runMode1Worker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 transition">
+                <div class="mb-6">
+                    <label class="block font-bold text-slate-700 mb-2">探索する桁数の上限（最大20）</label>
+                    <input type="number" id="maxDigitLimit" value="20" min="1" max="20"
+                           class="w-full text-xl p-3 border-2 border-slate-300 rounded-lg">
+                </div>
+
+                <button id="m1RunBtn" onclick="runMode1Worker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow mb-6 transition text-xl">
                     探索を実行
                 </button>
 
-                <!-- モード1 進捗表示 -->
-                <div id="progressBox1" class="hidden mb-4 p-4 border rounded-lg bg-blue-50 border-blue-200">
-                    <div class="flex justify-between text-sm font-bold text-blue-800 mb-1">
+                <div id="progressBox1" class="hidden mb-6 p-4 border rounded-lg bg-blue-50 border-blue-200">
+                    <div class="flex justify-between font-bold text-blue-800 mb-2">
                         <span id="progressTaskText1">処理中...</span>
                         <span id="progressPercent1">0%</span>
                     </div>
-                    <div class="w-full bg-blue-200 rounded-full h-3">
-                        <div id="progressBar1" class="bg-blue-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
+                    <div class="w-full bg-blue-200 rounded-full h-4">
+                        <div id="progressBar1" class="bg-blue-600 h-4 rounded-full transition-all duration-150" style="width: 0%"></div>
                     </div>
                 </div>
 
-                <div id="m1Result" class="hidden p-4 rounded-lg border border-slate-200 bg-slate-50">
+                <div id="m1Result" class="hidden p-6 rounded-lg border border-slate-200 bg-slate-50">
                     <div id="m1Output"></div>
-                    <button id="m1DownloadBtn" onclick="downloadMode1File()" class="hidden mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                    <button id="m1DownloadBtn" onclick="downloadMode1File()" class="hidden mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-lg transition text-xl">
                         Excel出力
                     </button>
                 </div>
@@ -64,9 +69,9 @@
 
             <!-- モード2: 桁数一括探索 -->
             <div id="mode2" class="hidden">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">桁数を選択</label>
-                    <select id="digitSelect" class="w-full text-lg p-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition">
+                <div class="mb-6">
+                    <label class="block font-bold text-slate-700 mb-2">桁数を選択</label>
+                    <select id="digitSelect" class="w-full text-xl p-4 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition">
                         <option value="1">1 桁</option>
                         <option value="2">2 桁</option>
                         <option value="3">3 桁</option>
@@ -90,35 +95,51 @@
                     </select>
                 </div>
 
-                <button id="m2RunBtn" onclick="runMode2MultiWorker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 transition">
+                <button id="m2RunBtn" onclick="runMode2MultiWorker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow mb-6 transition text-xl">
                     探索を実行
                 </button>
 
-                <!-- モード2 進捗表示 -->
-                <div id="progressBox2" class="hidden mb-4 p-4 border rounded-lg bg-blue-50 border-blue-200">
-                    <div class="flex justify-between text-sm font-bold text-blue-800 mb-1">
+                <div id="progressBox2" class="hidden mb-6 p-4 border rounded-lg bg-blue-50 border-blue-200">
+                    <div class="flex justify-between font-bold text-blue-800 mb-2">
                         <span id="progressTaskText2">処理中...</span>
                         <span id="progressPercent2">0%</span>
                     </div>
-                    <div class="w-full bg-blue-200 rounded-full h-3">
-                        <div id="progressBar2" class="bg-blue-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
+                    <div class="w-full bg-blue-200 rounded-full h-4">
+                        <div id="progressBar2" class="bg-blue-600 h-4 rounded-full transition-all duration-150" style="width: 0%"></div>
                     </div>
                 </div>
 
                 <div id="m2Result" class="hidden">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 id="cacheNotice" class="font-bold text-slate-800">結果一覧</h3>
-                        <button onclick="downloadMode2File()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition">
+                    <!-- コントロールバー（総数・検索・並び替え） -->
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4 bg-slate-50 p-4 rounded-lg border">
+                        <div>
+                            <span id="cacheNotice" class="font-bold text-slate-800">結果一覧</span>
+                            <span class="ml-4 text-sm bg-blue-100 text-blue-800 py-1 px-3 rounded-full font-bold">総数: <span id="totalCount">0</span> 件</span>
+                        </div>
+                        <div class="flex items-center gap-3 w-full md:w-auto">
+                            <input type="text" id="searchInput" placeholder="文字列で検索..." oninput="filterTable()"
+                                   class="p-2 border rounded-lg text-base w-full md:w-64 font-mono">
+                            <select id="sortOrder" onchange="filterTable()" class="p-2 border rounded-lg text-base font-bold bg-white">
+                                <option value="desc">降順 (大きい順)</option>
+                                <option value="asc">昇順 (小さい順)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mb-4">
+                        <button onclick="downloadMode2File()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-lg transition text-lg">
                             Excel出力
                         </button>
                     </div>
-                    <div class="max-h-96 overflow-y-auto border border-slate-200 rounded-lg">
-                        <table class="w-full text-left border-collapse text-sm">
+
+                    <!-- テーブル (高さをコンパクトに詰め、文字拡大) -->
+                    <div class="max-h-80 overflow-y-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-left border-collapse">
                             <thead class="bg-slate-800 text-white sticky top-0">
                                 <tr>
-                                    <th class="p-3 border-b">No.</th>
-                                    <th class="p-3 border-b">数字の組み合わせ</th>
-                                    <th class="p-3 border-b text-right">並び替え最大素数</th>
+                                    <th class="py-2 px-3 border-b w-16">No.</th>
+                                    <th class="py-2 px-3 border-b">数字の組み合わせ</th>
+                                    <th class="py-2 px-3 border-b text-right">並び替え最大素数</th>
                                 </tr>
                             </thead>
                             <tbody id="m2TableBody" class="divide-y divide-slate-200"></tbody>
@@ -131,29 +152,23 @@
     </div>
 
     <script>
-        // ----------------------------------------------------
-        // IndexedDB キャッシュ管理 (結果の長期保存)
-        // ----------------------------------------------------
+        // IndexedDB キャッシュ
         let db = null;
-        const request = indexedDB.open("PrimeSearchCacheDB", 1);
+        const request = indexedDB.open("PrimeSearchCacheDB_v2", 1);
         request.onupgradeneeded = function(e) {
             db = e.target.result;
             if (!db.objectStoreNames.contains("mode2Results")) {
                 db.createObjectStore("mode2Results", { keyPath: "digitCount" });
             }
         };
-        request.onsuccess = function(e) {
-            db = e.target.result;
-        };
+        request.onsuccess = function(e) { db = e.target.result; };
 
         function getCachedMode2(digitCount, callback) {
             if (!db) { callback(null); return; }
             const tx = db.transaction(["mode2Results"], "readonly");
             const store = tx.objectStore("mode2Results");
             const req = store.get(digitCount);
-            req.onsuccess = function() {
-                callback(req.result ? req.result.data : null);
-            };
+            req.onsuccess = function() { callback(req.result ? req.result.data : null); };
             req.onerror = function() { callback(null); };
         }
 
@@ -164,33 +179,20 @@
             store.put({ digitCount: digitCount, data: data });
         }
 
-        // ----------------------------------------------------
-        // UI・入力の復元
-        // ----------------------------------------------------
         window.addEventListener('DOMContentLoaded', () => {
             const saved = localStorage.getItem('prime_search_input');
-            if (saved !== null) {
-                document.getElementById('numInput').value = saved;
-            }
+            if (saved !== null) document.getElementById('numInput').value = saved;
         });
 
-        function saveInput(val) {
-            localStorage.setItem('prime_search_input', val);
-        }
+        function saveInput(val) { localStorage.setItem('prime_search_input', val); }
 
         function switchMode(mode) {
             document.getElementById('mode1').classList.toggle('hidden', mode !== 1);
             document.getElementById('mode2').classList.toggle('hidden', mode !== 2);
-            
-            document.getElementById('tab1Btn').className = mode === 1 
-                ? "flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition"
-                : "flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition";
-            document.getElementById('tab2Btn').className = mode === 2 
-                ? "flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition"
-                : "flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition";
+            document.getElementById('tab1Btn').className = mode === 1 ? "flex-1 py-4 font-bold text-blue-600 border-b-4 border-blue-600 transition text-xl" : "flex-1 py-4 font-bold text-slate-500 border-b-4 border-transparent transition text-xl";
+            document.getElementById('tab2Btn').className = mode === 2 ? "flex-1 py-4 font-bold text-blue-600 border-b-4 border-blue-600 transition text-xl" : "flex-1 py-4 font-bold text-slate-500 border-b-4 border-transparent transition text-xl";
         }
 
-        // 共通コアライブラリ
         const sharedScript = `
             function powerMod(base, exp, mod) {
                 let res = 1n;
@@ -207,14 +209,9 @@
                 if (n < 2n) return false;
                 if (n === 2n || n === 3n || n === 5n || n === 7n || n === 11n || n === 13n) return true;
                 if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n || n % 7n === 0n) return false;
-
                 let d = n - 1n;
                 let s = 0n;
-                while (d % 2n === 0n) {
-                    d /= 2n;
-                    s++;
-                }
-
+                while (d % 2n === 0n) { d /= 2n; s++; }
                 const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
                 for (let a of bases) {
                     if (a % n === 0n) continue;
@@ -223,10 +220,7 @@
                     let composite = true;
                     for (let r = 1n; r < s; r++) {
                         x = (x * x) % n;
-                        if (x === n - 1n) {
-                            composite = false;
-                            break;
-                        }
+                        if (x === n - 1n) { composite = false; break; }
                     }
                     if (composite) return false;
                 }
@@ -235,11 +229,8 @@
 
             function generatePermutations(arr, current, results) {
                 if (arr.length === 0) {
-                    if (current.length === 1) {
-                        results.add(current);
-                    } else if (current[0] !== '0' && ['1', '3', '7', '9'].includes(current[current.length - 1])) {
-                        results.add(current);
-                    }
+                    if (current.length === 1) results.add(current);
+                    else if (current[0] !== '0' && ['1', '3', '7', '9'].includes(current[current.length - 1])) results.add(current);
                     return;
                 }
                 for (let i = 0; i < arr.length; i++) {
@@ -263,18 +254,14 @@
             }
         `;
 
-        // ----------------------------------------------------
-        // モード1: 処理
-        // ----------------------------------------------------
+        // モード1
         let mode1AllFoundPrimes = [];
         let worker1 = null;
 
         function runMode1Worker() {
             const val = document.getElementById('numInput').value.trim();
-            if (!/^\d+$/.test(val)) {
-                alert("半角数字を入力してください。");
-                return;
-            }
+            const maxLimit = parseInt(document.getElementById('maxDigitLimit').value) || 20;
+            if (!/^\d+$/.test(val)) { alert("半角数字を入力してください。"); return; }
 
             const progressBox = document.getElementById('progressBox1');
             const progressBar = document.getElementById('progressBar1');
@@ -287,21 +274,20 @@
             m1Result.classList.add('hidden');
             runBtn.disabled = true;
             runBtn.classList.add('opacity-50');
-            progressTaskText.textContent = "準備中...";
+            progressTaskText.textContent = "処理中...";
 
             if (worker1) worker1.terminate();
 
             const workerCode1 = sharedScript + `
                 self.onmessage = function(e) {
-                    const digits = e.data.digits;
-                    self.postMessage({ type: 'status', text: '順列を生成・探索中...' });
-
+                    const { digits, maxLimit } = e.data;
                     const subSets = getSubsets(digits);
                     const total = subSets.length;
                     const primeMap = {};
 
                     for (let i = 0; i < total; i++) {
                         const sub = subSets[i];
+                        if (sub.length > maxLimit) continue;
                         const perms = new Set();
                         generatePermutations(sub, "", perms);
 
@@ -319,7 +305,6 @@
                             self.postMessage({ type: 'progress', pct: pct, text: '探索中... (' + (i + 1) + ' / ' + total + ')' });
                         }
                     }
-
                     self.postMessage({ type: 'complete', primeMap: primeMap });
                 };
             `;
@@ -328,9 +313,7 @@
             worker1 = new Worker(URL.createObjectURL(blob));
 
             worker1.onmessage = function(e) {
-                if (e.data.type === 'status') {
-                    progressTaskText.textContent = e.data.text;
-                } else if (e.data.type === 'progress') {
+                if (e.data.type === 'progress') {
                     progressBar.style.width = e.data.pct + '%';
                     progressPercent.textContent = e.data.pct + '%';
                     progressTaskText.textContent = e.data.text;
@@ -341,7 +324,7 @@
                 }
             };
 
-            worker1.postMessage({ digits: val.split('') });
+            worker1.postMessage({ digits: val.split(''), maxLimit: maxLimit });
         }
 
         function finishMode1(primeMap) {
@@ -364,29 +347,30 @@
             let globalMax = null;
 
             for (let len of lens) {
+                // 各桁の上から5つまでを表示
                 const sortedPrimes = Array.from(primeMap[len]).map(p => BigInt(p)).sort((a, b) => b > a ? 1 : -1);
+                const top5 = sortedPrimes.slice(0, 5);
                 const maxP = sortedPrimes[0];
                 if (!globalMax || maxP > globalMax) globalMax = maxP;
 
-                for (let p of sortedPrimes) {
-                    mode1AllFoundPrimes.push(p.toString());
-                }
+                for (let p of sortedPrimes) mode1AllFoundPrimes.push(p.toString());
 
                 html += `
                     <div class="border border-slate-300 rounded-lg overflow-hidden bg-white shadow-sm">
-                        <button onclick="toggleAccordion(${len})" class="w-full flex justify-between items-center p-3 bg-slate-100 hover:bg-slate-200 font-bold text-slate-800 transition">
-                            <span>📌 ${len}桁グループ (${sortedPrimes.length}件) - 最大: <span class="text-emerald-600">${maxP.toString()}</span></span>
+                        <button onclick="toggleAccordion(${len})" class="w-full flex justify-between items-center p-4 bg-slate-100 hover:bg-slate-200 font-bold text-slate-800 transition">
+                            <span>📌 ${len}桁グループ (全 ${sortedPrimes.length}件のうち上位表示) - 最大: <span class="text-emerald-600">${maxP.toString()}</span></span>
                             <span id="icon_${len}">▼ 開く</span>
                         </button>
-                        <div id="acc_${len}" class="hidden p-3 max-h-48 overflow-y-auto font-mono text-sm space-y-1 bg-slate-50 border-t">
-                            ${sortedPrimes.map((p, idx) => `<div>${idx + 1}. ${p.toString()}</div>`).join('')}
+                        <div id="acc_${len}" class="hidden p-4 max-h-60 overflow-y-auto font-mono text-base space-y-2 bg-slate-50 border-t">
+                            ${top5.map((p, idx) => `<div>${idx + 1}. ${p.toString()}</div>`).join('')}
+                            ${sortedPrimes.length > 5 ? `<div class="text-slate-500 text-sm italic">...他 ${sortedPrimes.length - 5} 件省略</div>` : ''}
                         </div>
                     </div>
                 `;
             }
 
             html += `</div>`;
-            output.innerHTML = `<p class="font-bold text-lg mb-3 text-slate-800">全体最大素数: <span class="text-emerald-600 text-xl">${globalMax.toString()}</span></p>` + html;
+            output.innerHTML = `<p class="font-bold text-xl mb-4 text-slate-900">全体最大素数: <span class="text-emerald-600 text-2xl">${globalMax.toString()}</span></p>` + html;
             dlBtn.classList.remove('hidden');
         }
 
@@ -403,23 +387,19 @@
             exportExcelNoHeader(mode1AllFoundPrimes, 'max_primes_mode1.xlsx');
         }
 
-        // ----------------------------------------------------
-        // モード2: 処理 ＆ キャッシュ対応
-        // ----------------------------------------------------
+        // モード2
         let mode2PrimesOnly = [];
         let activeWorkers = [];
 
         function runMode2MultiWorker() {
             const digitCount = parseInt(document.getElementById('digitSelect').value);
-
-            // キャッシュチェック（すでに計算済みなら即表示）
             getCachedMode2(digitCount, function(cachedData) {
                 if (cachedData) {
                     mode2PrimesOnly = cachedData;
+                    filterTable();
                     finishMode2(true);
                     return;
                 }
-
                 startMode2Calculation(digitCount);
             });
         }
@@ -443,10 +423,7 @@
 
             const workerCode2 = sharedScript + `
                 function generateMultisets(arr, k, start, current, results) {
-                    if (current.length === k) {
-                        results.push([...current]);
-                        return;
-                    }
+                    if (current.length === k) { results.push([...current]); return; }
                     for (let i = start; i < arr.length; i++) {
                         current.push(arr[i]);
                         generateMultisets(arr, k, i, current, results);
@@ -457,46 +434,33 @@
                 self.onmessage = function(e) {
                     const { tailDigit, digitCount, workerId } = e.data;
                     const results = [];
-
                     const allDigits = '0123456789'.split('');
                     const subMultisets = [];
-                    if (digitCount === 1) {
-                        subMultisets.push([tailDigit]);
-                    } else {
-                        generateMultisets(allDigits, digitCount - 1, 0, [], subMultisets);
-                    }
+                    if (digitCount === 1) subMultisets.push([tailDigit]);
+                    else generateMultisets(allDigits, digitCount - 1, 0, [], subMultisets);
 
                     const total = subMultisets.length;
-
                     for (let i = 0; i < total; i++) {
                         const rest = subMultisets[i];
                         const combo = [tailDigit, ...rest];
-
                         if (combo[0] === '0') continue;
-
                         const sum = combo.reduce((acc, d) => acc + parseInt(d), 0);
-                        if (sum % 3 === 0 && combo.length > 1) continue; 
+                        if (sum % 3 === 0 && combo.length > 1) continue;
 
                         const perms = new Set();
                         generatePermutations(combo, "", perms);
-
                         const sortedPerms = Array.from(perms).map(BigInt).sort((a, b) => b > a ? 1 : -1);
 
                         for (let num of sortedPerms) {
                             if (isPrime(num)) {
-                                results.push({
-                                    digits: combo.join(''),
-                                    maxPrime: num.toString()
-                                });
+                                results.push({ digits: combo.join(''), maxPrime: num.toString() });
                                 break;
                             }
                         }
-
                         if (i % 50 === 0 || i === total - 1) {
                             self.postMessage({ type: 'progress', processed: i + 1, total: total, workerId: workerId });
                         }
                     }
-
                     self.postMessage({ type: 'complete', results: results, workerId: workerId });
                 };
             `;
@@ -512,62 +476,80 @@
                 const worker = new Worker(URL.createObjectURL(blob));
                 activeWorkers.push(worker);
 
-                const workerId = idx;
-
                 worker.onmessage = function(e) {
                     if (e.data.type === 'progress') {
                         progressMap[e.data.workerId] = e.data.processed;
                         totalsMap[e.data.workerId] = e.data.total;
-                        
                         const totalProcessed = progressMap.reduce((a, b) => a + b, 0);
                         const totalCombos = totalsMap.reduce((a, b) => a + b, 0);
                         const pct = Math.floor((totalProcessed / totalCombos) * 100);
-
                         progressBar.style.width = pct + '%';
                         progressPercent.textContent = pct + '%';
                         progressTaskText.textContent = `探索中... (${totalProcessed} / ${totalCombos})`;
                     } else if (e.data.type === 'complete') {
                         allResults = allResults.concat(e.data.results);
                         completedThreads++;
-
                         if (completedThreads === tailDigits.length) {
                             mode2PrimesOnly = allResults;
-                            saveCachedMode2(digitCount, allResults); // 保存
+                            saveCachedMode2(digitCount, allResults);
+                            filterTable();
                             finishMode2(false);
                             runBtn.disabled = false;
                             runBtn.classList.remove('opacity-50');
                         }
                     }
                 };
-
-                worker.postMessage({ tailDigit: tail, digitCount: digitCount, workerId: workerId });
+                worker.postMessage({ tailDigit: tail, digitCount: digitCount, workerId: idx });
             });
+        }
+
+        // 検索・昇順降順切り替えフィルタ
+        function filterTable() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            let filtered = mode2PrimesOnly.filter(item => 
+                item.digits.toLowerCase().includes(query) || item.maxPrime.toLowerCase().includes(query)
+            );
+
+            filtered.sort((a, b) => {
+                const valA = BigInt(a.maxPrime);
+                const valB = BigInt(b.maxPrime);
+                if (sortOrder === 'desc') return valB > valA ? 1 : -1;
+                else return valA > valB ? 1 : -1;
+            });
+
+            document.getElementById('totalCount').textContent = filtered.length;
+
+            const tableBody = document.getElementById('m2TableBody');
+            tableBody.innerHTML = filtered.map((item, idx) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-2 px-3 border-b text-slate-500">${idx + 1}</td>
+                    <td class="py-2 px-3 border-b font-mono">${item.digits}</td>
+                    <td class="py-2 px-3 border-b text-right font-mono font-bold text-emerald-600">${item.maxPrime}</td>
+                </tr>
+            `).join('');
         }
 
         function finishMode2(isFromCache = false) {
             document.getElementById('progressBox2').classList.add('hidden');
-            const m2Result = document.getElementById('m2Result');
-            const tableBody = document.getElementById('m2TableBody');
-            const notice = document.getElementById('cacheNotice');
-
-            notice.textContent = isFromCache ? "結果一覧 (保存済みデータ)" : "結果一覧";
-
-            mode2PrimesOnly.sort((a, b) => BigInt(b.maxPrime) > BigInt(a.maxPrime) ? 1 : -1);
-
-            tableBody.innerHTML = mode2PrimesOnly.map((item, idx) => `
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="p-3 border-b text-slate-500">${idx + 1}</td>
-                    <td class="p-3 border-b font-mono">${item.digits}</td>
-                    <td class="p-3 border-b text-right font-mono font-bold text-emerald-600">${item.maxPrime}</td>
-                </tr>
-            `).join('');
-
-            m2Result.classList.remove('hidden');
+            document.getElementById('m2Result').classList.remove('hidden');
+            document.getElementById('cacheNotice').textContent = isFromCache ? "結果一覧 (保存済み)" : "結果一覧";
         }
 
         function downloadMode2File() {
-            if (mode2PrimesOnly.length === 0) return;
-            const primes = mode2PrimesOnly.map(item => item.maxPrime);
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const sortOrder = document.getElementById('sortOrder').value;
+            let filtered = mode2PrimesOnly.filter(item => 
+                item.digits.toLowerCase().includes(query) || item.maxPrime.toLowerCase().includes(query)
+            );
+            filtered.sort((a, b) => {
+                const valA = BigInt(a.maxPrime), valB = BigInt(b.maxPrime);
+                return sortOrder === 'desc' ? (valB > valA ? 1 : -1) : (valA > valB ? 1 : -1);
+            });
+
+            if (filtered.length === 0) return;
+            const primes = filtered.map(item => item.maxPrime);
             exportExcelNoHeader(primes, 'max_primes_only.xlsx');
         }
 

@@ -16,7 +16,7 @@
         <!-- ヘッダー -->
         <div class="bg-slate-900 text-white p-6">
             <h1 class="text-2xl font-bold tracking-wide">素数探索</h1>
-            <p class="text-slate-400 text-sm mt-1">部分集合順列対応 / 桁別トグル集計 / バックグラウンド非同期処理</p>
+            <p class="text-slate-400 text-sm mt-1">末尾別mod3枝刈り / マルチスレッド並列処理 / 桁別トグル集計</p>
         </div>
 
         <!-- タブ切り替え -->
@@ -40,13 +40,19 @@
                            oninput="saveInput(this.value)">
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-3 mb-6">
-                    <button onclick="runMode1(false)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition">
-                        最大素数を探索（桁別最大も表示）
-                    </button>
-                    <button onclick="runMode1(true)" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow transition">
-                        作れる素数を全抽出（桁別トグルまとめ）
-                    </button>
+                <button id="m1RunBtn" onclick="runMode1Worker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 transition">
+                    素数を探索（桁別トグル＆最大表示）
+                </button>
+
+                <!-- モード1 進捗表示 -->
+                <div id="progressBox1" class="hidden mb-4 p-4 border rounded-lg bg-blue-50 border-blue-200">
+                    <div class="flex justify-between text-sm font-bold text-blue-800 mb-1">
+                        <span id="progressTaskText1">待機中...</span>
+                        <span id="progressPercent1">0%</span>
+                    </div>
+                    <div class="w-full bg-blue-200 rounded-full h-3">
+                        <div id="progressBar1" class="bg-blue-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
+                    </div>
                 </div>
 
                 <div id="m1Result" class="hidden p-4 rounded-lg border border-slate-200 bg-slate-50">
@@ -85,18 +91,18 @@
                     </select>
                 </div>
 
-                <button id="m2RunBtn" onclick="runMode2Worker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 transition">
-                    一括計算を実行
+                <button id="m2RunBtn" onclick="runMode2MultiWorker()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 transition">
+                    末尾別・mod3枝刈り一括計算を実行
                 </button>
 
-                <!-- 進捗表示（詳細タスクメッセージ付き） -->
-                <div id="progressBox" class="hidden mb-4 p-4 border rounded-lg bg-blue-50 border-blue-200">
+                <!-- モード2 進捗表示 -->
+                <div id="progressBox2" class="hidden mb-4 p-4 border rounded-lg bg-blue-50 border-blue-200">
                     <div class="flex justify-between text-sm font-bold text-blue-800 mb-1">
-                        <span id="progressTaskText">待機中...</span>
-                        <span id="progressPercent">0%</span>
+                        <span id="progressTaskText2">待機中...</span>
+                        <span id="progressPercent2">0%</span>
                     </div>
                     <div class="w-full bg-blue-200 rounded-full h-3">
-                        <div id="progressBar" class="bg-blue-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
+                        <div id="progressBar2" class="bg-blue-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
                     </div>
                 </div>
 
@@ -126,9 +132,6 @@
     </div>
 
     <script>
-        // ----------------------------------------------------
-        // 初期状態・ローカルストレージ保持
-        // ----------------------------------------------------
         window.addEventListener('DOMContentLoaded', () => {
             const saved = localStorage.getItem('prime_search_input');
             if (saved !== null) {
@@ -152,87 +155,167 @@
                 : "flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition";
         }
 
-        // ----------------------------------------------------
-        // Miller-Rabin 素数判定 (BigInt対応)
-        // ----------------------------------------------------
-        function powerMod(base, exp, mod) {
-            let res = 1n;
-            base = base % mod;
-            while (exp > 0n) {
-                if (exp % 2n === 1n) res = (res * base) % mod;
-                base = (base * base) % mod;
-                exp /= 2n;
-            }
-            return res;
-        }
-
-        function isPrime(n) {
-            if (n < 2n) return false;
-            if (n === 2n || n === 3n || n === 5n || n === 7n || n === 11n || n === 13n) return true;
-            if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n || n % 7n === 0n) return false;
-
-            let d = n - 1n;
-            let s = 0n;
-            while (d % 2n === 0n) {
-                d /= 2n;
-                s++;
-            }
-
-            const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
-            for (let a of bases) {
-                if (a % n === 0n) continue;
-                let x = powerMod(a, d, n);
-                if (x === 1n || x === n - 1n) continue;
-                let composite = true;
-                for (let r = 1n; r < s; r++) {
-                    x = (x * x) % n;
-                    if (x === n - 1n) {
-                        composite = false;
-                        break;
-                    }
+        // 共通コア（ミラーラビン判定・順列生成・部分集合抽出）
+        const sharedScript = `
+            function powerMod(base, exp, mod) {
+                let res = 1n;
+                base = base % mod;
+                while (exp > 0n) {
+                    if (exp % 2n === 1n) res = (res * base) % mod;
+                    base = (base * base) % mod;
+                    exp /= 2n;
                 }
-                if (composite) return false;
+                return res;
             }
-            return true;
-        }
+
+            function isPrime(n) {
+                if (n < 2n) return false;
+                if (n === 2n || n === 3n || n === 5n || n === 7n || n === 11n || n === 13n) return true;
+                if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n || n % 7n === 0n) return false;
+
+                let d = n - 1n;
+                let s = 0n;
+                while (d % 2n === 0n) {
+                    d /= 2n;
+                    s++;
+                }
+
+                const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
+                for (let a of bases) {
+                    if (a % n === 0n) continue;
+                    let x = powerMod(a, d, n);
+                    if (x === 1n || x === n - 1n) continue;
+                    let composite = true;
+                    for (let r = 1n; r < s; r++) {
+                        x = (x * x) % n;
+                        if (x === n - 1n) {
+                            composite = false;
+                            break;
+                        }
+                    }
+                    if (composite) return false;
+                }
+                return true;
+            }
+
+            function generatePermutations(arr, current, results) {
+                if (arr.length === 0) {
+                    if (current.length === 1) {
+                        results.add(current);
+                    } else if (current[0] !== '0' && ['1', '3', '7', '9'].includes(current[current.length - 1])) {
+                        results.add(current);
+                    }
+                    return;
+                }
+                for (let i = 0; i < arr.length; i++) {
+                    const nextArr = arr.slice(0, i).concat(arr.slice(i + 1));
+                    generatePermutations(nextArr, current + arr[i], results);
+                }
+            }
+
+            function getSubsets(arr) {
+                const subsets = [];
+                const helper = (startIndex, current) => {
+                    if (current.length > 0) subsets.push([...current]);
+                    for (let i = startIndex; i < arr.length; i++) {
+                        current.push(arr[i]);
+                        helper(i + 1, current);
+                        current.pop();
+                    }
+                };
+                helper(0, []);
+                return subsets;
+            }
+        `;
 
         // ----------------------------------------------------
-        // モード1: 指定数字のサブセット順列探索 ＆ 桁別トグルまとめ
+        // モード1: ワーカ処理
         // ----------------------------------------------------
         let mode1AllFoundPrimes = [];
+        let worker1 = null;
 
-        function runMode1(extractAll) {
+        function runMode1Worker() {
             const val = document.getElementById('numInput').value.trim();
             if (!/^\d+$/.test(val)) {
                 alert("半角数字を入力してください。");
                 return;
             }
 
-            const digits = val.split('');
+            const progressBox = document.getElementById('progressBox1');
+            const progressBar = document.getElementById('progressBar1');
+            const progressPercent = document.getElementById('progressPercent1');
+            const progressTaskText = document.getElementById('progressTaskText1');
+            const m1Result = document.getElementById('m1Result');
+            const runBtn = document.getElementById('m1RunBtn');
+
+            progressBox.classList.remove('hidden');
+            m1Result.classList.add('hidden');
+            runBtn.disabled = true;
+            runBtn.classList.add('opacity-50');
+            progressTaskText.textContent = "部分集合を分解中...";
+
+            if (worker1) worker1.terminate();
+
+            const workerCode1 = sharedScript + `
+                self.onmessage = function(e) {
+                    const digits = e.data.digits;
+                    self.postMessage({ type: 'status', text: '部分集合および順列を高速生成中...' });
+
+                    const subSets = getSubsets(digits);
+                    const total = subSets.length;
+                    const primeMap = {};
+
+                    for (let i = 0; i < total; i++) {
+                        const sub = subSets[i];
+                        const perms = new Set();
+                        generatePermutations(sub, "", perms);
+
+                        for (let pStr of perms) {
+                            const num = BigInt(pStr);
+                            if (isPrime(num)) {
+                                const len = pStr.length;
+                                if (!primeMap[len]) primeMap[len] = new Set();
+                                primeMap[len].add(num);
+                            }
+                        }
+
+                        if (i % 5 === 0 || i === total - 1) {
+                            const pct = Math.floor(((i + 1) / total) * 100);
+                            self.postMessage({ type: 'progress', pct: pct, text: '素数探索中... (' + (i + 1) + ' / ' + total + ' サブセット)' });
+                        }
+                    }
+
+                    self.postMessage({ type: 'complete', primeMap: primeMap });
+                };
+            `;
+
+            const blob = new Blob([workerCode1], { type: 'application/javascript' });
+            worker1 = new Worker(URL.createObjectURL(blob));
+
+            worker1.onmessage = function(e) {
+                if (e.data.type === 'status') {
+                    progressTaskText.textContent = e.data.text;
+                } else if (e.data.type === 'progress') {
+                    progressBar.style.width = e.data.pct + '%';
+                    progressPercent.textContent = e.data.pct + '%';
+                    progressTaskText.textContent = e.data.text;
+                } else if (e.data.type === 'complete') {
+                    finishMode1(e.data.primeMap);
+                    runBtn.disabled = false;
+                    runBtn.classList.remove('opacity-50');
+                }
+            };
+
+            worker1.postMessage({ digits: val.split('') });
+        }
+
+        function finishMode1(primeMap) {
+            document.getElementById('progressBox1').classList.add('hidden');
             const resultBox = document.getElementById('m1Result');
             const output = document.getElementById('m1Output');
             const dlBtn = document.getElementById('m1DownloadBtn');
             resultBox.classList.remove('hidden');
 
-            // 入力数字のすべての部分集合（1個〜全桁）を生成し、それぞれの順列から素数を探す
-            const allSubsets = getSubsets(digits);
-            const primeMap = {}; // 桁数ごとの素数リスト
-
-            for (let sub of allSubsets) {
-                const perms = new Set();
-                generatePermutationsFromSubset(sub, "", perms);
-
-                for (let pStr of perms) {
-                    const num = BigInt(pStr);
-                    if (isPrime(num)) {
-                        const len = pStr.length;
-                        if (!primeMap[len]) primeMap[len] = new Set();
-                        primeMap[len].add(num);
-                    }
-                }
-            }
-
-            // 桁数ごとに整理して降順ソート
             const lens = Object.keys(primeMap).map(Number).sort((a, b) => b - a);
             mode1AllFoundPrimes = [];
 
@@ -246,7 +329,7 @@
             let globalMax = null;
 
             for (let len of lens) {
-                const sortedPrimes = Array.from(primeMap[len]).sort((a, b) => b > a ? 1 : -1);
+                const sortedPrimes = Array.from(primeMap[len]).map(p => BigInt(p)).sort((a, b) => b > a ? 1 : -1);
                 const maxP = sortedPrimes[0];
                 if (!globalMax || maxP > globalMax) globalMax = maxP;
 
@@ -272,37 +355,6 @@
             dlBtn.classList.remove('hidden');
         }
 
-        function getSubsets(arr) {
-            const subsets = [];
-            const helper = (startIndex, current) => {
-                if (current.length > 0) {
-                    subsets.push([...current]);
-                }
-                for (let i = startIndex; i < arr.length; i++) {
-                    current.push(arr[i]);
-                    helper(i + 1, current);
-                    current.pop();
-                }
-            };
-            helper(0, []);
-            return subsets;
-        }
-
-        function generatePermutationsFromSubset(arr, current, results) {
-            if (arr.length === 0) {
-                if (current.length === 1) {
-                    results.add(current);
-                } else if (current[0] !== '0' && ['1', '3', '7', '9'].includes(current[current.length - 1])) {
-                    results.add(current);
-                }
-                return;
-            }
-            for (let i = 0; i < arr.length; i++) {
-                const nextArr = arr.slice(0, i).concat(arr.slice(i + 1));
-                generatePermutationsFromSubset(nextArr, current + arr[i], results);
-            }
-        }
-
         function toggleAccordion(len) {
             const el = document.getElementById(`acc_${len}`);
             const icon = document.getElementById(`icon_${len}`);
@@ -317,18 +369,18 @@
         }
 
         // ----------------------------------------------------
-        // モード2: 桁数一括探索 (Web Worker + 詳細タスク表示)
+        // モード2: 末尾別・mod3事前枝刈り ＆ マルチスレッド並列探索
         // ----------------------------------------------------
         let mode2PrimesOnly = [];
-        let worker = null;
+        let activeWorkers = [];
 
-        function runMode2Worker() {
+        function runMode2MultiWorker() {
             const digitCount = parseInt(document.getElementById('digitSelect').value);
             
-            const progressBox = document.getElementById('progressBox');
-            const progressBar = document.getElementById('progressBar');
-            const progressPercent = document.getElementById('progressPercent');
-            const progressTaskText = document.getElementById('progressTaskText');
+            const progressBox = document.getElementById('progressBox2');
+            const progressBar = document.getElementById('progressBar2');
+            const progressPercent = document.getElementById('progressPercent2');
+            const progressTaskText = document.getElementById('progressTaskText2');
             const m2Result = document.getElementById('m2Result');
             const runBtn = document.getElementById('m2RunBtn');
 
@@ -336,52 +388,13 @@
             m2Result.classList.add('hidden');
             runBtn.disabled = true;
             runBtn.classList.add('opacity-50');
-            progressTaskText.textContent = "数字の組み合わせ（マルチセット）を生成中...";
+            progressTaskText.textContent = "末尾別・mod3枝刈りによる組合せ生成中...";
 
-            if (worker) worker.terminate();
+            activeWorkers.forEach(w => w.terminate());
+            activeWorkers = [];
 
-            const workerCode = `
-                function powerMod(base, exp, mod) {
-                    let res = 1n;
-                    base = base % mod;
-                    while (exp > 0n) {
-                        if (exp % 2n === 1n) res = (res * base) % mod;
-                        base = (base * base) % mod;
-                        exp /= 2n;
-                    }
-                    return res;
-                }
-
-                function isPrime(n) {
-                    if (n < 2n) return false;
-                    if (n === 2n || n === 3n || n === 5n || n === 7n || n === 11n || n === 13n) return true;
-                    if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n || n % 7n === 0n) return false;
-
-                    let d = n - 1n;
-                    let s = 0n;
-                    while (d % 2n === 0n) {
-                        d /= 2n;
-                        s++;
-                    }
-
-                    const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
-                    for (let a of bases) {
-                        if (a % n === 0n) continue;
-                        let x = powerMod(a, d, n);
-                        if (x === 1n || x === n - 1n) continue;
-                        let composite = true;
-                        for (let r = 1n; r < s; r++) {
-                            x = (x * x) % n;
-                            if (x === n - 1n) {
-                                composite = false;
-                                break;
-                            }
-                        }
-                        if (composite) return false;
-                    }
-                    return true;
-                }
-
+            // ワーカー内部スクリプト（末尾4パターン分割 ＆ mod3枝刈りロジック）
+            const workerCode2 = sharedScript + `
                 function generateMultisets(arr, k, start, current, results) {
                     if (current.length === k) {
                         results.push([...current]);
@@ -394,40 +407,32 @@
                     }
                 }
 
-                function generatePermutations(arr, current, results) {
-                    if (arr.length === 0) {
-                        if (current.length === 1) {
-                            results.add(current);
-                        } else if (current[0] !== '0' && ['1', '3', '7', '9'].includes(current[current.length - 1])) {
-                            results.add(current);
-                        }
-                        return;
-                    }
-                    for (let i = 0; i < arr.length; i++) {
-                        const nextArr = arr.slice(0, i).concat(arr.slice(i + 1));
-                        generatePermutations(nextArr, current + arr[i], results);
-                    }
-                }
-
                 self.onmessage = function(e) {
-                    const digitCount = e.data.digitCount;
-                    self.postMessage({ type: 'status', text: '組合せ（マルチセット）を生成中...' });
-
-                    const multisets = [];
-                    generateMultisets('0123456789'.split(''), digitCount, 0, [], multisets);
-
-                    const total = multisets.length;
+                    const { tailDigit, digitCount, workerId } = e.data;
                     const results = [];
 
+                    // 末尾を tailDigit に固定した上で、残り (digitCount - 1) 桁のマルチセットを生成
+                    // これにより「末尾ごとに分ける」要件と「事前枝刈り」を完全に両立
+                    const allDigits = '0123456789'.split('');
+                    const subMultisets = [];
+                    if (digitCount === 1) {
+                        subMultisets.push([tailDigit]);
+                    } else {
+                        generateMultisets(allDigits, digitCount - 1, 0, [], subMultisets);
+                    }
+
+                    const total = subMultisets.length;
+
                     for (let i = 0; i < total; i++) {
-                        const combo = multisets[i];
-                        if (combo.every(d => d === '0')) continue;
+                        const rest = subMultisets[i];
+                        const combo = [tailDigit, ...rest]; // 全桁の組み合わせ
 
+                        // 先頭が0なら除外（桁数が崩れるため）
+                        if (combo[0] === '0') continue;
+
+                        // mod 3 (3n) の事前枝刈りチェック
                         const sum = combo.reduce((acc, d) => acc + parseInt(d), 0);
-                        if (sum % 3 === 0 && combo.length > 1) continue; // 3n枝刈り
-
-                        const validTails = combo.filter(d => ['1', '3', '7', '9'].includes(d));
-                        if (digitCount > 1 && validTails.length === 0) continue; // 奇数なし枝刈り
+                        if (sum % 3 === 0 && combo.length > 1) continue; 
 
                         const perms = new Set();
                         generatePermutations(combo, "", perms);
@@ -440,50 +445,68 @@
                                     digits: combo.join(''),
                                     maxPrime: num.toString()
                                 });
-                                break;
+                                break; // 発見次第即時打ち切り
                             }
                         }
 
-                        if (i % 20 === 0 || i === total - 1) {
-                            const pct = Math.floor(((i + 1) / total) * 100);
-                            self.postMessage({ 
-                                type: 'progress', 
-                                pct: pct, 
-                                text: \`並び替え・素数探索中... (\${i + 1} / \text{total} 組)\`.replace('text', total) 
-                            });
+                        if (i % 50 === 0 || i === total - 1) {
+                            self.postMessage({ type: 'progress', processed: i + 1, total: total, workerId: workerId });
                         }
                     }
 
-                    self.postMessage({ type: 'complete', results: results });
+                    self.postMessage({ type: 'complete', results: results, workerId: workerId });
                 };
             `;
 
-            const blob = new Blob([workerCode], { type: 'application/javascript' });
-            worker = new Worker(URL.createObjectURL(blob));
+            // 末尾候補（1, 3, 7, 9）ごとに4つのワーカーを並列起動（マルチスレッド）
+            const tailDigits = ['1', '3', '7', '9'];
+            let completedThreads = 0;
+            let allResults = [];
+            let progressMap = new Array(tailDigits.length).fill(0);
+            let totalsMap = new Array(tailDigits.length).fill(1);
 
-            worker.onmessage = function(e) {
-                if (e.data.type === 'status') {
-                    progressTaskText.textContent = e.data.text;
-                } else if (e.data.type === 'progress') {
-                    progressBar.style.width = e.data.pct + '%';
-                    progressPercent.textContent = e.data.pct + '%';
-                    progressTaskText.textContent = e.data.text;
-                } else if (e.data.type === 'complete') {
-                    mode2PrimesOnly = e.data.results;
-                    finishMode2();
-                    runBtn.disabled = false;
-                    runBtn.classList.remove('opacity-50');
-                }
-            };
+            tailDigits.forEach((tail, idx) => {
+                const blob = new Blob([workerCode2], { type: 'application/javascript' });
+                const worker = new Worker(URL.createObjectURL(blob));
+                activeWorkers.push(worker);
 
-            worker.postMessage({ digitCount: digitCount });
+                const workerId = idx;
+
+                worker.onmessage = function(e) {
+                    if (e.data.type === 'progress') {
+                        progressMap[e.data.workerId] = e.data.processed;
+                        totalsMap[e.data.workerId] = e.data.total;
+                        
+                        const totalProcessed = progressMap.reduce((a, b) => a + b, 0);
+                        const totalCombos = totalsMap.reduce((a, b) => a + b, 0);
+                        const pct = Math.floor((totalProcessed / totalCombos) * 100);
+
+                        progressBar.style.width = pct + '%';
+                        progressPercent.textContent = pct + '%';
+                        progressTaskText.textContent = `末尾別・mod3枝刈り並列探索中... (${totalProcessed} / ${totalCombos} 組)`;
+                    } else if (e.data.type === 'complete') {
+                        allResults = allResults.concat(e.data.results);
+                        completedThreads++;
+
+                        if (completedThreads === tailDigits.length) {
+                            mode2PrimesOnly = allResults;
+                            finishMode2();
+                            runBtn.disabled = false;
+                            runBtn.classList.remove('opacity-50');
+                        }
+                    }
+                };
+
+                worker.postMessage({ tailDigit: tail, digitCount: digitCount, workerId: workerId });
+            });
         }
 
         function finishMode2() {
-            document.getElementById('progressBox').classList.add('hidden');
+            document.getElementById('progressBox2').classList.add('hidden');
             const m2Result = document.getElementById('m2Result');
             const tableBody = document.getElementById('m2TableBody');
 
+            // 全体を最大素数の降順にソート
             mode2PrimesOnly.sort((a, b) => BigInt(b.maxPrime) > BigInt(a.maxPrime) ? 1 : -1);
 
             tableBody.innerHTML = mode2PrimesOnly.map((item, idx) => `
@@ -504,10 +527,10 @@
         }
 
         // ----------------------------------------------------
-        // 見出しなし・静的固定のExcel出力機能 (SheetJS)
+        // 見出し（ヘッダー）なしの静的Excel出力機能 (SheetJS)
         // ----------------------------------------------------
         function exportExcelNoHeader(dataList, filename) {
-            // A列に値のみを上から順に出力（見出し行なし）
+            // 見出し行を一切入れず、A列に純粋な数値データを上から順に書き込み
             const wsData = dataList.map(val => [isNaN(val) ? val : parseInt(val)]);
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             const wb = XLSX.utils.book_new();

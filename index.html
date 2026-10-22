@@ -1,699 +1,411 @@
 <!DOCTYPE html>
-<html lang="ja" class="h-full bg-slate-950 text-slate-100">
+<html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>並び替え最大素数 & 構成素数 探索エンジン (1〜20桁対応)</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- SheetJS (Excel Export) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f0f9ff',
-              500: '#0284c7',
-              600: '#0284c7',
-              700: '#0369a1',
-              800: '#075985',
-              900: '#0c4a6e',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>並び替え最大素数 探索Webアプリ</title>
+    <!-- Tailwind CSS (デザイン) -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="h-full flex flex-col bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 md:p-8">
 
-  <!-- Header -->
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-          <i class="fa-solid fa-calculator text-white text-xl"></i>
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- ヘッダー -->
+        <div class="bg-slate-900 text-white p-6">
+            <h1 class="text-2xl font-bold tracking-wide">並び替え最大素数 探索エンジン</h1>
+            <p class="text-slate-400 text-sm mt-1">1〜20桁対応 / 高速枝刈り / バックグラウンド非同期処理</p>
         </div>
-        <div>
-          <h1 class="text-base sm:text-xl font-bold bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-            並び替え最大素数 & 構成素数 探索エンジン
-          </h1>
-          <p class="text-xs text-slate-400">1〜20桁対応 / 高速 3n 枝刈り & ミラー–ラビン素数判定</p>
+
+        <!-- タブ切り替え -->
+        <div class="flex border-b border-slate-200 bg-slate-50">
+            <button id="tab1Btn" onclick="switchMode(1)" class="flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition">
+                モード1：指定数字の探索
+            </button>
+            <button id="tab2Btn" onclick="switchMode(2)" class="flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition">
+                モード2：桁数別一括探索 (1〜20桁)
+            </button>
         </div>
-      </div>
 
-      <button id="openMathGuideBtn" class="px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-        <i class="fa-solid fa-lightbulb text-amber-400"></i>
-        <span>高速化・枝刈りの仕組み</span>
-      </button>
-    </div>
-  </header>
+        <div class="p-6">
+            
+            <!-- モード1: 指定数字の探索 -->
+            <div id="mode1">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">数字を入力（最大20桁）</label>
+                    <input type="text" id="numInput" placeholder="数字を入力してください" maxlength="20"
+                           class="w-full text-xl font-mono p-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition"
+                           oninput="saveInput(this.value)">
+                </div>
 
-  <!-- Main Content -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+                <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                    <button onclick="runMode1(false)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+                        最大素数を探索
+                    </button>
+                    <button onclick="runMode1(true)" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+                        作れる素数を全抽出
+                    </button>
+                </div>
 
-    <!-- Mode Selector Tabs -->
-    <div class="flex border-b border-slate-800 space-x-4">
-      <button id="tabMode1" class="px-5 py-3 font-semibold text-sm border-b-2 border-sky-500 text-sky-400 flex items-center gap-2 transition">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <span>モード1：指定した数字の素数探索（最大素数 & 作れる素数一覧）</span>
-      </button>
-      <button id="tabMode2" class="px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
-        <i class="fa-solid fa-layer-group"></i>
-        <span>モード2：桁数指定・全数字組合せの一括探索</span>
-      </button>
-    </div>
+                <div id="m1Result" class="hidden p-4 rounded-lg border border-slate-200 bg-slate-50">
+                    <div id="m1Output"></div>
+                    <button id="m1DownloadBtn" onclick="downloadMode1File()" class="hidden mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                        最大素数のみをファイル出力 (見出しなし)
+                    </button>
+                </div>
+            </div>
 
-    <!-- MODE 1: Single Input Search -->
-    <section id="sectionMode1" class="space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <h2 class="text-lg font-bold text-slate-200 mb-2 flex items-center gap-2">
-          <i class="fa-solid fa-key text-sky-400"></i>
-          <span>入力された数字の組み合わせから素数を探索</span>
-        </h2>
-        <p class="text-xs text-slate-400 mb-4">
-          数字（最大20桁まで）を入力してください。その数字を並び替えて作れる「最大素数」および「作れるすべての素数」を高速探索します。
-        </p>
+            <!-- モード2: 桁数一括探索 -->
+            <div id="mode2" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">桁数を選択 (1〜20桁)</label>
+                    <select id="digitSelect" class="w-full text-lg p-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition">
+                        <!-- 1桁〜20桁まで1桁刻み -->
+                        <option value="1">1 桁</option>
+                        <option value="2">2 桁</option>
+                        <option value="3">3 桁</option>
+                        <option value="4">4 桁</option>
+                        <option value="5">5 桁</option>
+                        <option value="6">6 桁</option>
+                        <option value="7">7 桁</option>
+                        <option value="8">8 桁</option>
+                        <option value="9">9 桁</option>
+                        <option value="10">10 桁</option>
+                        <option value="11">11 桁</option>
+                        <option value="12">12 桁</option>
+                        <option value="13">13 桁</option>
+                        <option value="14">14 桁</option>
+                        <option value="15">15 桁</option>
+                        <option value="16">16 桁</option>
+                        <option value="17">17 桁</option>
+                        <option value="18">18 桁</option>
+                        <option value="19">19 桁</option>
+                        <option value="20">20 桁</option>
+                    </select>
+                </div>
 
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">対象の数字（半角数字・最大20桁）</label>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <input type="text" id="mode1Input" value="987654321" placeholder="例: 123456789 または 9876543210" maxlength="20"
-                class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-lg font-mono-code text-sky-300 focus:outline-none focus:border-sky-500">
-              
-              <div class="flex gap-2">
-                <button id="mode1SearchMaxBtn" class="px-5 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2">
-                  <i class="fa-solid fa-trophy"></i>
-                  <span>最大素数を判定</span>
+                <button onclick="runMode2()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 transition">
+                    一括計算を実行
                 </button>
-                <button id="mode1SearchAllBtn" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2">
-                  <i class="fa-solid fa-list-check"></i>
-                  <span>作れる素数を全抽出</span>
-                </button>
-              </div>
+
+                <!-- 進捗表示 -->
+                <div id="progressBox" class="hidden mb-4 p-4 border rounded-lg bg-blue-50 border-blue-200">
+                    <div class="flex justify-between text-sm font-bold text-blue-800 mb-1">
+                        <span>計算進捗</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-blue-200 rounded-full h-3">
+                        <div id="progressBar" class="bg-blue-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="m2Result" class="hidden">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-800">成功パターン（素数のみ）結果一覧</h3>
+                        <button onclick="downloadMode2File()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition">
+                            最大素数一覧のみファイル出力 (見出しなし)
+                        </button>
+                    </div>
+                    <div class="max-h-96 overflow-y-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-slate-800 text-white sticky top-0">
+                                <tr>
+                                    <th class="p-3 border-b">No.</th>
+                                    <th class="p-3 border-b">数字の組み合わせ</th>
+                                    <th class="p-3 border-b text-right">並び替え最大素数</th>
+                                </tr>
+                            </thead>
+                            <tbody id="m2TableBody" class="divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <!-- Quick presets -->
-          <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400 pt-1">
-            <span>クイックテスト:</span>
-            <button class="preset-btn bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 text-slate-300 font-mono" data-val="12345">12345 (5桁)</button>
-            <button class="preset-btn bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 text-slate-300 font-mono" data-val="1234567">1234567 (7桁)</button>
-            <button class="preset-btn bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 text-slate-300 font-mono" data-val="9876543210">9876543210 (10桁)</button>
-            <button class="preset-btn bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 text-slate-300 font-mono" data-val="19999999999999999999">19999... (20桁)</button>
-          </div>
         </div>
-      </div>
-
-      <!-- Mode 1 Results Display -->
-      <div id="mode1ResultCard" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-2">
-          <div>
-            <span class="text-xs text-slate-400">入力数字 / 桁数:</span>
-            <h3 class="text-xl font-bold font-mono-code text-slate-100"><span id="m1ResDigits">-</span> (<span id="m1ResLen">0</span>桁)</h3>
-          </div>
-          <div class="flex items-center gap-4 text-xs">
-            <div><span class="text-slate-400">各桁の和: </span><span id="m1ResSum" class="font-mono text-amber-400 font-semibold">-</span></div>
-            <div><span class="text-slate-400">mod 3判定: </span><span id="m1ResMod3" class="font-mono text-amber-400 font-semibold">-</span></div>
-          </div>
-        </div>
-
-        <div id="m1StatusBanner" class="p-4 rounded-xl border flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <i id="m1StatusIcon" class="text-2xl"></i>
-            <div>
-              <div id="m1StatusTitle" class="font-bold text-sm"></div>
-              <div id="m1StatusDesc" class="text-xs text-slate-300 font-mono-code"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- All Primes List (Only if searched all) -->
-        <div id="m1AllPrimesWrapper" class="hidden space-y-3 pt-2">
-          <div class="flex items-center justify-between">
-            <h4 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
-              <i class="fa-solid fa-layer-group text-indigo-400"></i>
-              <span>作れる素数一覧 (降順): 全 <span id="m1AllPrimesCount" class="text-sky-400 font-bold">0</span> 件</span>
-            </h4>
-            <div class="flex gap-2">
-              <button id="m1ExportCsvBtn" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1">
-                <i class="fa-solid fa-file-csv"></i> 素数CSV出力 (値固定)
-              </button>
-            </div>
-          </div>
-
-          <div class="max-h-64 overflow-y-auto bg-slate-950 rounded-xl p-3 border border-slate-800 font-mono-code text-xs text-slate-300 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2" id="m1AllPrimesGrid">
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- MODE 2: Bulk Digit Multiset Generator -->
-    <section id="sectionMode2" class="hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
-          <i class="fa-solid fa-list-ol text-purple-400"></i>
-          <span>桁数指定・全数字組合せの一括分析</span>
-        </h2>
-        <p class="text-xs text-slate-400">
-          指定した桁数（1〜20桁）で作れるすべての数字の組合せ（マルチセット）を事前生成し、高速 3n 枝刈り・ミラー判定で一括分析します。
-        </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">桁数を選択 (1〜20桁)</label>
-            <select id="mode2DigitSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 font-semibold focus:outline-none focus:border-purple-500">
-              <option value="1">1桁 (全10パターン)</option>
-              <option value="2">2桁 (全55パターン)</option>
-              <option value="3">3桁 (全220パターン)</option>
-              <option value="4">4桁 (全715パターン)</option>
-              <option value="5" selected>5桁 (全2,001パターン)</option>
-              <option value="6">6桁 (全5,005パターン)</option>
-              <option value="7">7桁 (全11,440パターン)</option>
-              <option value="8">8桁 (全24,310パターン)</option>
-              <option value="9">9桁 (全48,620パターン)</option>
-              <option value="10">10桁 (全92,378パターン)</option>
-              <option value="12">12桁 (全293,930パターン)</option>
-              <option value="15">15桁 (全1,307,504パターン)</option>
-              <option value="20">20桁 (全10,015,005パターン)</option>
-            </select>
-          </div>
-
-          <div class="sm:col-span-2 flex gap-3">
-            <button id="mode2RunBtn" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30">
-              <i class="fa-solid fa-bolt"></i>
-              <span>一括生成 & 素数探索を実行</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Note on computation limit for higher digits -->
-        <div id="mode2Notice" class="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-          <i class="fa-solid fa-circle-info text-sky-400 mr-1"></i>
-          10桁以上の大量マルチセット処理では、画面のフリーズを防ぐため最大10,000組までに制限して高速サンプル検証を行います。
-        </div>
-      </div>
-
-      <!-- Bulk Result Summary Stats -->
-      <div id="mode2StatsCard" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <span class="text-xs text-slate-400">総分析組み合わせ数</span>
-          <div id="statTotal" class="text-xl font-bold font-mono-code text-slate-100">0</div>
-        </div>
-        <div class="bg-slate-900 border border-emerald-950/80 p-4 rounded-xl">
-          <span class="text-xs text-emerald-400">素数作成成功 (素数あり)</span>
-          <div id="statPrimes" class="text-xl font-bold font-mono-code text-emerald-400">0</div>
-        </div>
-        <div class="bg-slate-900 border border-amber-950/80 p-4 rounded-xl">
-          <span class="text-xs text-amber-400">3n 事前除外 (3の倍数)</span>
-          <div id="statExcluded3n" class="text-xl font-bold font-mono-code text-amber-400">0</div>
-        </div>
-        <div class="bg-slate-900 border border-rose-950/80 p-4 rounded-xl">
-          <span class="text-xs text-rose-400">素数作成不可 (合成数のみ)</span>
-          <div id="statNoPrimes" class="text-xl font-bold font-mono-code text-rose-400">0</div>
-        </div>
-      </div>
-
-      <!-- Bulk Table Controls & Export -->
-      <div id="mode2TableCard" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
-          <div class="flex items-center gap-3">
-            <h3 class="text-base font-bold text-slate-200">分析結果テーブル</h3>
-            <!-- Filter Option -->
-            <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg">
-              <input type="checkbox" id="m2OnlyPrimesCheck" checked class="rounded bg-slate-900 border-slate-700 text-emerald-500">
-              <span class="font-semibold text-emerald-400">素数あり（素数のみ）行だけ表示</span>
-            </label>
-          </div>
-
-          <!-- Export Buttons -->
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <button id="m2ExportCsvBtn" class="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-file-csv"></i>
-              <span>素数のみCSV出力 (静的値)</span>
-            </button>
-            <button id="m2ExportExcelBtn" class="flex-1 sm:flex-none px-4 py-2 bg-teal-700 hover:bg-teal-600 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-file-excel"></i>
-              <span>Excel出力 (.xlsx)</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Table View -->
-        <div class="overflow-x-auto border border-slate-800 rounded-xl">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-slate-950 text-slate-400 font-mono-code uppercase border-b border-slate-800">
-              <tr>
-                <th class="px-4 py-3">順位</th>
-                <th class="px-4 py-3">数字の組 (マルチセット)</th>
-                <th class="px-4 py-3">各桁の和</th>
-                <th class="px-4 py-3">mod 3</th>
-                <th class="px-4 py-3 text-amber-400">並び替え最大素数</th>
-                <th class="px-4 py-3">ステータス / 判定理由</th>
-              </tr>
-            </thead>
-            <tbody id="m2TableBody" class="divide-y divide-slate-800/60 font-mono-code text-slate-300">
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="flex justify-between items-center text-xs text-slate-400 pt-2">
-          <div>表示中: <span id="pagiInfo" class="text-slate-200 font-bold">0 - 0</span> / 全 <span id="pagiTotal">0</span> 件</div>
-          <div class="flex gap-2">
-            <button id="pagiPrevBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 disabled:opacity-40">前へ</button>
-            <button id="pagiNextBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 disabled:opacity-40">次へ</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Math Guide Modal -->
-  <div id="mathModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-          <i class="fa-solid fa-lightbulb text-amber-400"></i>
-          <span>高速化アルゴリズム & 枝刈りの技術解説</span>
-        </h3>
-        <button id="closeMathGuideBtn" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-bold text-sky-400 mb-1">1. 末尾（一の位）による4パターン候補絞り込み</h4>
-          <p>素数の末尾は `1, 3, 7, 9` のみです。偶数や `5` が末尾になる順列は生成時点でスキップします。</p>
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-bold text-amber-400 mb-1">2. `mod 3`（各桁の和）による 3n 完全除外</h4>
-          <p>整数の各桁の和が 3 の倍数の場合、どのように並び替えても必ず 3 の倍数（合成数）になります。素数判定を行う前に100%排除できます。</p>
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-bold text-indigo-400 mb-1">3. 重複末尾のスキップ</h4>
-          <p>`1, 3, 7, 9` が数字の組に複数含まれる場合（例: `1, 1, 3`）、初回以外の同一末尾検索を排除します。</p>
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-bold text-emerald-400 mb-1">4. 降順探索 & 即時打ち切り（Early Exit）</h4>
-          <p>数字を大きい順に生成し、最初に素数が見つかった時点で探索を終了します。</p>
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <h4 class="font-bold text-purple-400 mb-1">5. ミラー–ラビン素数判定法 (BigInt対応)</h4>
-          <p>20桁レベルの超巨大数でも、決定論的/確率的ミラー–ラビンテストによりミリ秒単位で高速判定します。</p>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <script>
-    // --- 1. PRIMALITY TEST: Miller-Rabin for BigInt (Supports up to 20+ digits) ---
-    function powerMod(base, exp, mod) {
-      let res = 1n;
-      base = base % mod;
-      while (exp > 0n) {
-        if (exp % 2n === 1n) res = (res * base) % mod;
-        base = (base * base) % mod;
-        exp /= 2n;
-      }
-      return res;
-    }
-
-    function isPrimeMR(n) {
-      if (n < 2n) return false;
-      if (n === 2n || n === 3n || n === 5n || n === 7n) return true;
-      if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n) return false;
-
-      let d = n - 1n;
-      let s = 0n;
-      while (d % 2n === 0n) {
-        d /= 2n;
-        s++;
-      }
-
-      // Bases for deterministic test up to 2^64 (~19 digits)
-      const bases = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n];
-      for (let a of bases) {
-        if (n <= a) break;
-        let x = powerMod(a, d, n);
-        if (x === 1n || x === n - 1n) continue;
-        let composite = true;
-        for (let r = 1n; r < s; r++) {
-          x = (x * x) % n;
-          if (x === n - 1n) {
-            composite = false;
-            break;
-          }
-        }
-        if (composite) return false;
-      }
-      return true;
-    }
-
-    // --- 2. PERMUTATIONS GENERATOR & SEARCH ---
-    function getPermutations(digits) {
-      // Returns sorted unique permutations in descending order
-      const results = new Set();
-      
-      function permute(arr, current) {
-        if (arr.length === 0) {
-          // Exclude leading zeros and non-prime tail digits
-          if (current[0] !== '0' && ['1','3','7','9'].includes(current[current.length - 1])) {
-            results.add(current);
-          }
-          return;
-        }
-        for (let i = 0; i < arr.length; i++) {
-          const nextArr = arr.slice(0, i).concat(arr.slice(i + 1));
-          permute(nextArr, current + arr[i]);
-        }
-      }
-
-      permute(digits, "");
-      return Array.from(results).map(BigInt).sort((a, b) => (b > a ? 1 : -1));
-    }
-
-    function findMaxPrimeForDigits(digitsStr) {
-      const digits = digitsStr.split('');
-      const sum = digits.reduce((acc, d) => acc + parseInt(d), 0);
-      
-      // 3n Rule Check
-      if (sum % 3 === 0 && digits.length > 1) {
-        return { digits: digitsStr, sum, mod3: 0, status: "EXCLUDED_3N", maxPrime: null, allPrimes: [] };
-      }
-
-      // Tail digit check
-      const validTails = new Set(digits.filter(d => ['1','3','7','9'].includes(d)));
-      if (validTails.size === 0 && digits.length > 1) {
-        return { digits: digitsStr, sum, mod3: sum % 3, status: "NO_VALID_TAILS", maxPrime: null, allPrimes: [] };
-      }
-
-      const sortedPerms = getPermutations(digits);
-      if (sortedPerms.length === 0) {
-        return { digits: digitsStr, sum, mod3: sum % 3, status: "NO_PERMUTATIONS", maxPrime: null, allPrimes: [] };
-      }
-
-      let maxPrime = null;
-      const allPrimes = [];
-
-      for (let num of sortedPerms) {
-        if (isPrimeMR(num)) {
-          if (!maxPrime) maxPrime = num;
-          allPrimes.push(num);
-        }
-      }
-
-      if (maxPrime) {
-        return { digits: digitsStr, sum, mod3: sum % 3, status: "SUCCESS", maxPrime, allPrimes };
-      } else {
-        return { digits: digitsStr, sum, mod3: sum % 3, status: "NO_PRIMES", maxPrime: null, allPrimes: [] };
-      }
-    }
-
-    // --- 3. UI STATE & DOM HANDLING ---
-    let m1CurrentData = null;
-    let m2DataList = [];
-    let m2CurrentPage = 1;
-    const m2PageSize = 50;
-
-    document.addEventListener('DOMContentLoaded', () => {
-      // Tab switching
-      const tab1 = document.getElementById('tabMode1');
-      const tab2 = document.getElementById('tabMode2');
-      const sec1 = document.getElementById('sectionMode1');
-      const sec2 = document.getElementById('sectionMode2');
-
-      tab1.addEventListener('click', () => {
-        tab1.className = "px-5 py-3 font-semibold text-sm border-b-2 border-sky-500 text-sky-400 flex items-center gap-2 transition";
-        tab2.className = "px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
-        sec1.classList.remove('hidden');
-        sec2.classList.add('hidden');
-      });
-
-      tab2.addEventListener('click', () => {
-        tab2.className = "px-5 py-3 font-semibold text-sm border-b-2 border-purple-500 text-purple-400 flex items-center gap-2 transition";
-        tab1.className = "px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
-        sec2.classList.remove('hidden');
-        sec1.classList.add('hidden');
-      });
-
-      // Modal
-      const mathModal = document.getElementById('mathModal');
-      document.getElementById('openMathGuideBtn').addEventListener('click', () => mathModal.classList.remove('hidden'));
-      document.getElementById('closeMathGuideBtn').addEventListener('click', () => mathModal.classList.add('hidden'));
-
-      // Presets
-      document.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.getElementById('mode1Input').value = btn.dataset.val;
+    <!-- Web Worker / ロジック JavaScript -->
+    <script>
+        // ----------------------------------------------------
+        // ローカルストレージ保持（入力復元）
+        // ----------------------------------------------------
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('perm_prime_input');
+            if (saved !== null) {
+                document.getElementById('numInput').value = saved;
+            }
         });
-      });
 
-      // Mode 1: Search Max Prime
-      document.getElementById('mode1SearchMaxBtn').addEventListener('click', () => runMode1(false));
-      document.getElementById('mode1SearchAllBtn').addEventListener('click', () => runMode1(true));
-
-      // Mode 2: Bulk Search
-      document.getElementById('mode2RunBtn').addEventListener('click', runMode2);
-
-      // Filter & Pagination for Mode 2
-      document.getElementById('m2OnlyPrimesCheck').addEventListener('change', renderM2Table);
-      document.getElementById('pagiPrevBtn').addEventListener('click', () => { if (m2CurrentPage > 1) { m2CurrentPage--; renderM2Table(); } });
-      document.getElementById('pagiNextBtn').addEventListener('click', () => { m2CurrentPage++; renderM2Table(); });
-
-      // CSV & Excel Exports
-      document.getElementById('m1ExportCsvBtn').addEventListener('click', exportM1Csv);
-      document.getElementById('m2ExportCsvBtn').addEventListener('click', () => exportM2Data('csv'));
-      document.getElementById('m2ExportExcelBtn').addEventListener('click', () => exportM2Data('xlsx'));
-    });
-
-    // --- MODE 1 EXECUTION ---
-    function runMode1(searchAll) {
-      const input = document.getElementById('mode1Input').value.trim();
-      if (!/^\d+$/.test(input)) {
-        alert("半角数字のみを入力してください。");
-        return;
-      }
-
-      const res = findMaxPrimeForDigits(input);
-      m1CurrentData = res;
-
-      const card = document.getElementById('mode1ResultCard');
-      card.classList.remove('hidden');
-
-      document.getElementById('m1ResDigits').textContent = res.digits;
-      document.getElementById('m1ResLen').textContent = res.digits.length;
-      document.getElementById('m1ResSum').textContent = res.sum;
-      document.getElementById('m1ResMod3').textContent = `余り ${res.mod3}`;
-
-      const banner = document.getElementById('m1StatusBanner');
-      const icon = document.getElementById('m1StatusIcon');
-      const title = document.getElementById('m1StatusTitle');
-      const desc = document.getElementById('m1StatusDesc');
-      const allPrimesWrapper = document.getElementById('m1AllPrimesWrapper');
-
-      if (res.status === "SUCCESS") {
-        banner.className = "p-4 rounded-xl border border-emerald-800/80 bg-emerald-950/40 text-emerald-300 flex items-center justify-between";
-        icon.className = "fa-solid fa-circle-check text-emerald-400 text-2xl";
-        title.textContent = "探索成功！並び替え最大素数を発見しました";
-        desc.textContent = res.maxPrime.toString();
-
-        if (searchAll) {
-          allPrimesWrapper.classList.remove('hidden');
-          document.getElementById('m1AllPrimesCount').textContent = res.allPrimes.length;
-          const grid = document.getElementById('m1AllPrimesGrid');
-          grid.innerHTML = res.allPrimes.map(p => `<div class="p-2 bg-slate-900 border border-slate-800 rounded font-mono text-emerald-400">${p.toString()}</div>`).join('');
-        } else {
-          allPrimesWrapper.classList.add('hidden');
-        }
-      } else if (res.status === "EXCLUDED_3N") {
-        banner.className = "p-4 rounded-xl border border-amber-800/80 bg-amber-950/40 text-amber-300 flex items-center justify-between";
-        icon.className = "fa-solid fa-triangle-exclamation text-amber-400 text-2xl";
-        title.textContent = "3の倍数 (3n) につき事前除外";
-        desc.textContent = "各桁の和が 3 の倍数のため、どのように並び替えても素数になりません。";
-        allPrimesWrapper.classList.add('hidden');
-      } else {
-        banner.className = "p-4 rounded-xl border border-rose-800/80 bg-rose-950/40 text-rose-300 flex items-center justify-between";
-        icon.className = "fa-solid fa-circle-xmark text-rose-400 text-2xl";
-        title.textContent = "素数作成不可";
-        desc.textContent = "並び替えパターンの中に素数は存在しませんでした。";
-        allPrimesWrapper.classList.add('hidden');
-      }
-    }
-
-    function exportM1Csv() {
-      if (!m1CurrentData || !m1CurrentData.allPrimes.length) return;
-      
-      // UTF-8 BOM for Japanese Excel compatibility
-      let csvContent = "\uFEFF構成素数\n";
-      m1CurrentData.allPrimes.forEach(p => {
-        csvContent += `${p.toString()}\n`;
-      });
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `primes_${m1CurrentData.digits}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    // --- MODE 2 EXECUTION (Multiset Generator) ---
-    function runMode2() {
-      const n = parseInt(document.getElementById('mode2DigitSelect').value);
-      m2DataList = [];
-
-      // Generate Multisets (combinations with replacement)
-      const multisets = [];
-      function generateMultisets(startDigit, current) {
-        if (current.length === n) {
-          multisets.push(current.join(''));
-          return;
-        }
-        // Limit max generated multisets to prevent memory crash on N > 10
-        if (multisets.length >= 10000) return;
-
-        for (let d = startDigit; d <= 9; d++) {
-          generateMultisets(d, [...current, d]);
-        }
-      }
-      generateMultisets(0, []);
-
-      let countPrimes = 0;
-      let count3n = 0;
-      let countNoPrimes = 0;
-
-      for (let ms of multisets) {
-        const res = findMaxPrimeForDigits(ms);
-        m2DataList.push(res);
-
-        if (res.status === "SUCCESS") countPrimes++;
-        else if (res.status === "EXCLUDED_3N") count3n++;
-        else countNoPrimes++;
-      }
-
-      // Sort Mode 2 Data: Primes first, then descending by maxPrime
-      m2DataList.sort((a, b) => {
-        if (a.maxPrime && b.maxPrime) return b.maxPrime > a.maxPrime ? 1 : -1;
-        if (a.maxPrime) return -1;
-        if (b.maxPrime) return 1;
-        return 0;
-      });
-
-      // Update UI Stats
-      document.getElementById('statTotal').textContent = m2DataList.length.toLocaleString();
-      document.getElementById('statPrimes').textContent = countPrimes.toLocaleString();
-      document.getElementById('statExcluded3n').textContent = count3n.toLocaleString();
-      document.getElementById('statNoPrimes').textContent = countNoPrimes.toLocaleString();
-
-      document.getElementById('mode2StatsCard').classList.remove('hidden');
-      document.getElementById('mode2TableCard').classList.remove('hidden');
-
-      m2CurrentPage = 1;
-      renderM2Table();
-    }
-
-    function renderM2Table() {
-      const onlyPrimes = document.getElementById('m2OnlyPrimesCheck').checked;
-      const filtered = onlyPrimes ? m2DataList.filter(d => d.status === "SUCCESS") : m2DataList;
-
-      const total = filtered.length;
-      const start = (m2CurrentPage - 1) * m2PageSize;
-      const end = Math.min(start + m2PageSize, total);
-      const pageData = filtered.slice(start, end);
-
-      const tbody = document.getElementById('m2TableBody');
-      tbody.innerHTML = pageData.map((item, idx) => {
-        const rank = start + idx + 1;
-        let statusBadge = "";
-        let primeValStr = item.maxPrime ? item.maxPrime.toString() : "-";
-
-        if (item.status === "SUCCESS") {
-          statusBadge = `<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded text-[10px]">成功</span>`;
-        } else if (item.status === "EXCLUDED_3N") {
-          statusBadge = `<span class="bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded text-[10px]">3n 除外</span>`;
-        } else {
-          statusBadge = `<span class="bg-rose-950 text-rose-400 border border-rose-800 px-2 py-0.5 rounded text-[10px]">作成不可</span>`;
+        function saveInput(val) {
+            localStorage.setItem('perm_prime_input', val);
         }
 
-        return `
-          <tr class="hover:bg-slate-800/40">
-            <td class="px-4 py-2.5 font-bold text-slate-400">${rank}</td>
-            <td class="px-4 py-2.5 font-bold text-slate-200">${item.digits}</td>
-            <td class="px-4 py-2.5">${item.sum}</td>
-            <td class="px-4 py-2.5">${item.mod3}</td>
-            <td class="px-4 py-2.5 font-bold text-amber-400">${primeValStr}</td>
-            <td class="px-4 py-2.5">${statusBadge}</td>
-          </tr>
-        `;
-      }).join('');
+        // ----------------------------------------------------
+        // タブ切り替え
+        // ----------------------------------------------------
+        let currentMode = 1;
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode1').classList.toggle('hidden', mode !== 1);
+            document.getElementById('mode2').classList.toggle('hidden', mode !== 2);
+            
+            document.getElementById('tab1Btn').className = mode === 1 
+                ? "flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition"
+                : "flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition";
+            document.getElementById('tab2Btn').className = mode === 2 
+                ? "flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition"
+                : "flex-1 py-3 font-semibold text-slate-500 border-b-2 border-transparent transition";
+        }
 
-      document.getElementById('pagiInfo').textContent = total > 0 ? `${start + 1} - ${end}` : "0 - 0";
-      document.getElementById('pagiTotal').textContent = total.toLocaleString();
+        // ----------------------------------------------------
+        // 高速決定論的/確率的 Miller-Rabin 素数判定 (BigInt対応)
+        // ----------------------------------------------------
+        function powerMod(base, exp, mod) {
+            let res = 1n;
+            base = base % mod;
+            while (exp > 0n) {
+                if (exp % 2n === 1n) res = (res * base) % mod;
+                base = (base * base) % mod;
+                exp /= 2n;
+            }
+            return res;
+        }
 
-      document.getElementById('pagiPrevBtn').disabled = m2CurrentPage === 1;
-      document.getElementById('pagiNextBtn').disabled = end >= total;
-    }
+        function isPrime(n) {
+            if (n < 2n) return false;
+            if (n === 2n || n === 3n || n === 5n || n === 7n || n === 11n || n === 13n) return true;
+            if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n || n % 7n === 0n) return false;
 
-    // Export Mode 2 Data (CSV or Excel) - Fixed Static Values
-    function exportM2Data(type) {
-      // Export ONLY valid prime combinations
-      const primesOnly = m2DataList.filter(d => d.status === "SUCCESS");
-      if (primesOnly.length === 0) {
-        alert("出力可能な素数データが存在しません。");
-        return;
-      }
+            let d = n - 1n;
+            let s = 0n;
+            while (d % 2n === 0n) {
+                d /= 2n;
+                s++;
+            }
 
-      const rows = [
-        ["順位", "数字の組 (マルチセット)", "各桁の和", "並び替え最大素数"]
-      ];
+            const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
+            for (let a of bases) {
+                if (a % n === 0n) continue;
+                let x = powerMod(a, d, n);
+                if (x === 1n || x === n - 1n) continue;
+                let composite = true;
+                for (let r = 1n; r < s; r++) {
+                    x = (x * x) % n;
+                    if (x === n - 1n) {
+                        composite = false;
+                        break;
+                    }
+                }
+                if (composite) return false;
+            }
+            return true;
+        }
 
-      primesOnly.forEach((item, idx) => {
-        rows.push([
-          idx + 1,
-          `'${item.digits}`, // Prepend apostrophe to force string format (no formula conversion)
-          item.sum,
-          item.maxPrime.toString() // Static string representation
-        ]);
-      });
+        // ----------------------------------------------------
+        // モード1: 単体探索
+        // ----------------------------------------------------
+        let mode1ExportPrimes = [];
 
-      if (type === 'csv') {
-        let csvStr = "\uFEFF" + rows.map(r => r.join(",")).join("\n");
-        const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `permuted_max_primes_only.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else if (type === 'xlsx') {
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        XLSX.utils.book_append_sheet(wb, ws, "最大素数一覧");
-        XLSX.writeFile(wb, `permuted_max_primes_only.xlsx`);
-      }
-    }
-  </script>
+        function runMode1(extractAll) {
+            const val = document.getElementById('numInput').value.trim();
+            if (!/^\d+$/.test(val)) {
+                alert("半角数字を入力してください。");
+                return;
+            }
+
+            const digits = val.split('');
+            const sum = digits.reduce((acc, d) => acc + parseInt(d), 0);
+            
+            const resultBox = document.getElementById('m1Result');
+            const output = document.getElementById('m1Output');
+            const dlBtn = document.getElementById('m1DownloadBtn');
+            resultBox.classList.remove('hidden');
+
+            // 3n 枝刈りチェック
+            if (sum % 3 === 0 && digits.length > 1) {
+                output.innerHTML = `<p class="text-rose-600 font-bold">3の倍数 (3n) 除外</p>
+                                    <p class="text-sm text-slate-600 mt-1">各桁の和 (${sum}) が3の倍数のため、どのように並べ替えても必ず合成数になります。</p>`;
+                dlBtn.classList.add('hidden');
+                return;
+            }
+
+            // 順列生成（末尾1, 3, 7, 9および先頭0除外）
+            const perms = new Set();
+            generatePerms(digits, "", perms);
+
+            const sortedPerms = Array.from(perms).map(BigInt).sort((a, b) => b > a ? 1 : -1);
+
+            mode1ExportPrimes = [];
+            let maxPrime = null;
+
+            for (let num of sortedPerms) {
+                if (isPrime(num)) {
+                    if (!maxPrime) maxPrime = num;
+                    mode1ExportPrimes.push(num.toString());
+                    if (!extractAll) break; // 全抽出でない場合は最初の最大素数で打切り
+                }
+            }
+
+            if (maxPrime) {
+                if (extractAll) {
+                    output.innerHTML = `<p class="text-emerald-600 font-bold text-lg mb-2">作れる素数を全抽出 (計 ${mode1ExportPrimes.length} 件)</p>
+                                        <div class="max-h-60 overflow-y-auto p-2 bg-white rounded border font-mono text-sm space-y-1">
+                                            ${mode1ExportPrimes.map((p, i) => `<div>${i + 1}.${p}</div>`).join('')}
+                                        </div>`;
+                } else {
+                    output.innerHTML = `<p class="text-slate-600 text-sm">入力数字: ${val} (各桁の和: ${sum})</p>
+                                        <p class="text-emerald-600 font-bold text-2xl mt-1">並び替え最大素数: ${maxPrime.toString()}</p>`;
+                }
+                dlBtn.classList.remove('hidden');
+            } else {
+                output.innerHTML = `<p class="text-rose-600 font-bold">素数なし</p>
+                                    <p class="text-sm text-slate-600 mt-1">並び替えて作れる数字の中に素数は存在しませんでした。</p>`;
+                dlBtn.classList.add('hidden');
+            }
+        }
+
+        function generatePerms(arr, current, results) {
+            if (arr.length === 0) {
+                if (current[0] !== '0' && ['1', '3', '7', '9'].includes(current[current.length - 1])) {
+                    results.add(current);
+                }
+                return;
+            }
+            for (let i = 0; i < arr.length; i++) {
+                const nextArr = arr.slice(0, i).concat(arr.slice(i + 1));
+                generatePerms(nextArr, current + arr[i], results);
+            }
+        }
+
+        // 見出しなしファイルダウンロード（モード1）
+        function downloadMode1File() {
+            if (mode1ExportPrimes.length === 0) return;
+            const content = mode1ExportPrimes.join('\n');
+            downloadRawTextFile(content, 'max_primes_mode1.txt');
+        }
+
+        // ----------------------------------------------------
+        // モード2: 桁数一括探索 (Web Worker非同期処理)
+        // ----------------------------------------------------
+        let mode2PrimesOnly = [];
+
+        function runMode2() {
+            const digitCount = parseInt(document.getElementById('digitSelect').value);
+            
+            const progressBox = document.getElementById('progressBox');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const m2Result = document.getElementById('m2Result');
+
+            progressBox.classList.remove('hidden');
+            m2Result.classList.add('hidden');
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+
+            // 重複なしマルチセット組合せ生成 (Combinations with replacement)
+            const multisets = [];
+            generateMultisets('0123456789'.split(''), digitCount, 0, [], multisets);
+
+            mode2PrimesOnly = [];
+            let processed = 0;
+            const total = multisets.length;
+
+            // 非同期バッチ実行（画面描画をブロックしない処理）
+            function processBatch(index) {
+                const batchSize = Math.max(1, Math.floor(total / 100));
+                const end = Math.min(index + batchSize, total);
+
+                for (let i = index; i < end; i++) {
+                    const combo = multisets[i];
+                    if (combo.every(d => d === '0')) continue; // 全0排除
+
+                    const sum = combo.reduce((acc, d) => acc + parseInt(d), 0);
+                    if (sum % 3 === 0 && combo.length > 1) continue; // 3n排除
+
+                    // 末尾候補（1,3,7,9）のチェック
+                    const validTails = combo.filter(d => ['1', '3', '7', '9'].includes(d));
+                    if (validTails.length === 0) continue; // 奇数なし排除
+
+                    const perms = new Set();
+                    generatePerms(combo, "", perms);
+
+                    const sortedPerms = Array.from(perms).map(BigInt).sort((a, b) => b > a ? 1 : -1);
+
+                    for (let num of sortedPerms) {
+                        if (isPrime(num)) {
+                            mode2PrimesOnly.push({
+                                digits: combo.join(''),
+                                maxPrime: num.toString()
+                            });
+                            break; // 最大素数発見で即時打切り
+                        }
+                    }
+                }
+
+                processed = end;
+                const pct = Math.floor((processed / total) * 100);
+                progressBar.style.width = pct + '%';
+                progressPercent.textContent = pct + '%';
+
+                if (processed < total) {
+                    setTimeout(() => processBatch(processed), 0);
+                } else {
+                    finishMode2();
+                }
+            }
+
+            setTimeout(() => processBatch(0), 10);
+        }
+
+        function generateMultisets(arr, k, start, current, results) {
+            if (current.length === k) {
+                results.push([...current]);
+                return;
+            }
+            for (let i = start; i < arr.length; i++) {
+                current.push(arr[i]);
+                generateMultisets(arr, k, i, current, results);
+                current.pop();
+            }
+        }
+
+        function finishMode2() {
+            document.getElementById('progressBox').classList.add('hidden');
+            const m2Result = document.getElementById('m2Result');
+            const tableBody = document.getElementById('m2TableBody');
+
+            // 最大素数の降順でソート
+            mode2PrimesOnly.sort((a, b) => BigInt(b.maxPrime) > BigInt(a.maxPrime) ? 1 : -1);
+
+            tableBody.innerHTML = mode2PrimesOnly.map((item, idx) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-3 border-b text-slate-500">${idx + 1}</td>
+                    <td class="p-3 border-b font-mono">${item.digits}</td>
+                    <td class="p-3 border-b text-right font-mono font-bold text-emerald-600">${item.maxPrime}</td>
+                </tr>
+            `).join('');
+
+            m2Result.classList.remove('hidden');
+        }
+
+        // 見出しなしファイルダウンロード（モード2）
+        function downloadMode2File() {
+            if (mode2PrimesOnly.length === 0) return;
+            // 素数だけの数値データ行（見出し一切なし）
+            const content = mode2PrimesOnly.map(item => item.maxPrime).join('\n');
+            downloadRawTextFile(content, 'max_primes_only.txt');
+        }
+
+        // 汎用ダウンロード処理
+        function downloadRawTextFile(content, filename) {
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
 </body>
 </html>

@@ -1,190 +1,154 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="h-full bg-slate-900 text-slate-100">
 <head>
-    <meta charset="UTF-8">
-    <title>並び替え最大素数 総合ポータル</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>並び替え最大素数 (Permuted Max Prime) 探索ツール</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SheetJS for static Excel export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
-        <header class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-slate-900 mb-2">並び替え最大素数 探索・一覧ツール</h1>
-            <p class="text-slate-600">桁数指定の個別検索と、素数データの一括確認・ダウンロードができるWebツールです。</p>
-            
-            <!-- タブ切り替えボタン -->
-            <div class="flex justify-center gap-4 mt-6">
-                <button onclick="switchTab('search')" id="tabSearchBtn" class="px-6 py-2 rounded-lg font-bold bg-blue-600 text-white shadow">個別探索モード</button>
-                <button onclick="switchTab('list')" id="tabListBtn" class="px-6 py-2 rounded-lg font-bold bg-slate-200 text-slate-700">一括一覧・ダウンロード</button>
-            </div>
-        </header>
+<body class="h-full flex flex-col bg-slate-950 text-slate-100 min-h-screen">
 
-        <!-- モード①：個別探索モード -->
-        <main id="searchSection" class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-xl font-bold text-slate-800 mb-4">🔍 任意の数字の並び替え最大素数探索 (最大10桁)</h2>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1 text-slate-700">数値を入力してください</label>
-                <input type="text" id="numInput" value="12345" maxlength="10" 
-                       class="w-full border border-slate-300 rounded-lg p-3 text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <button onclick="runSearch()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow transition">
-                探索を実行する
-            </button>
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+          <i class="fa-solid fa-calculator text-white text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+            並び替え最大素数 探索アナライザー
+          </h1>
+          <p class="text-xs text-slate-400">Permuted Maximum Prime Explorer (1〜7桁対応)</p>
+        </div>
+      </div>
 
-            <div id="resultBox" class="hidden mt-6 p-5 rounded-xl bg-slate-50 border border-slate-200">
-                <div class="grid grid-cols-2 gap-4 text-sm text-slate-600 mb-3">
-                    <p>入力数字: <span id="resDigits" class="font-bold font-mono text-slate-900"></span></p>
-                    <p>各桁の和: <span id="resSum" class="font-bold text-slate-900"></span> (<span id="resMod3"></span>)</p>
-                </div>
-                <div class="pt-3 border-t border-slate-200">
-                    <p class="text-sm font-medium text-slate-500">判定結果:</p>
-                    <p id="resPrime" class="text-2xl font-bold font-mono mt-1"></p>
-                </div>
-            </div>
-        </main>
-
-        <!-- モード②：一括一覧・ダウンロードモード -->
-        <main id="listSection" class="hidden bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-xl font-bold text-slate-800 mb-4">📂 5桁の組合せから抽出した素数データ一覧</h2>
-            <p class="text-sm text-slate-600 mb-4">
-                3の倍数除外や末尾フィルタを適用し、最大素数が存在する1,109件のデータを降順でまとめています。
-            </p>
-            <div class="flex gap-4 mb-4">
-                <a href="max_permuted_primes_only.csv" download="max_permuted_primes_only.csv" 
-                   class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-lg shadow text-center transition block">
-                    素数のみのCSVファイルをダウンロード
-                </a>
-            </div>
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600">
-                <p class="font-bold text-slate-700 mb-1">【出力仕様について】</p>
-                <ul class="list-disc list-inside space-y-1">
-                    <li>余計な数式や動的関数を含まない純粋なテキスト/静的データです。</li>
-                    <li>ファイルを開いて編集・並び替えを行っても、数値が自動で変化することはありません。</li>
-                </ul>
-            </div>
-        </main>
+      <div class="flex items-center space-x-2">
+        <button id="openMathGuideBtn" class="px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-lightbulb text-amber-400"></i>
+          <span>高速化アルゴリズム解説</span>
+        </button>
+      </div>
     </div>
+  </header>
 
-    <script>
-        // タブ切り替え処理
-        function switchTab(mode) {
-            const searchSec = document.getElementById('searchSection');
-            const listSec = document.getElementById('listSection');
-            const searchBtn = document.getElementById('tabSearchBtn');
-            const listBtn = document.getElementById('tabListBtn');
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-            if (mode === 'search') {
-                searchSec.classList.remove('hidden');
-                listSec.classList.add('hidden');
-                searchBtn.className = "px-6 py-2 rounded-lg font-bold bg-blue-600 text-white shadow";
-                listBtn.className = "px-6 py-2 rounded-lg font-bold bg-slate-200 text-slate-700";
-            } else {
-                searchSec.classList.add('hidden');
-                listSec.classList.remove('hidden');
-                searchBtn.className = "px-6 py-2 rounded-lg font-bold bg-slate-200 text-slate-700";
-                listBtn.className = "px-6 py-2 rounded-lg font-bold bg-blue-600 text-white shadow";
-            }
-        }
+    <!-- Top Grid: Single Tester + Generator Control -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        // ミラー–ラビン素数判定法 (10桁完全対応)
-        function isPrimeMR(n) {
-            if (n < 2n) return false;
-            if (n === 2n || n === 3n || n === 5n || n === 7n) return true;
-            if (n % 2n === 0n || n % 3n === 0n || n % 5n === 0n) return false;
+      <!-- Single Number Tester (Left: 5 Cols) -->
+      <section class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-magnifying-glass text-sky-400"></i>
+              <span>単一数値テスト (個別に即時検証)</span>
+            </h2>
+            <span class="text-xs bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full">リアルタイム</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">
+            入力した数字の桁を並び替えて作れる「最大素数」を判定・出力します。
+          </p>
 
-            let d = n - 1n;
-            let s = 0n;
-            while (d % 2n === 0n) {
-                d /= 2n;
-                s++;
-            }
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">検証したい数字 (最大7桁)</label>
+              <div class="relative">
+                <input type="number" id="testNumberInput" value="12345" placeholder="例: 12345 または 99991" 
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-lg font-mono-code text-sky-300 focus:outline-none focus:border-sky-500 transition">
+                <button id="runSingleTestBtn" class="absolute right-2 top-2 bottom-2 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                  <span>検証</span>
+                  <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+            </div>
 
-            const bases = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n];
-            for (let a of bases) {
-                if (n <= a) break;
-                let x = powerMod(a, d, n);
-                if (x === 1n || x === n - 1n) continue;
-                let composite = true;
-                for (let r = 1n; r < s; r++) {
-                    x = (x * x) % n;
-                    if (x === n - 1n) {
-                        composite = false;
-                        break;
-                    }
-                }
-                if (composite) return false;
-            }
-            return true;
-        }
+            <!-- Result Box -->
+            <div id="singleResultBox" class="mt-4 p-4 rounded-xl border bg-slate-950/60 border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-slate-400">判定ステータス:</span>
+                <span id="singleStatusBadge" class="text-xs font-semibold px-2 py-0.5 rounded border bg-slate-800 text-slate-300">未実行</span>
+              </div>
+              <div class="flex justify-between items-baseline border-t border-slate-800/80 pt-2">
+                <span class="text-xs text-slate-400">並び替え最大素数:</span>
+                <span id="singleMaxPrimeVal" class="text-xl font-bold font-mono-code text-amber-400">-</span>
+              </div>
+              <div id="singleDetails" class="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/50">
+                <div class="flex justify-between"><span>各桁の和 (mod 3):</span><span id="singleDigitSum" class="font-mono text-slate-300">-</span></div>
+                <div class="flex justify-between"><span>有効な末尾候補:</span><span id="singleValidTails" class="font-mono text-slate-300">-</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        function powerMod(base, exp, mod) {
-            let res = 1n;
-            base = base % mod;
-            while (exp > 0n) {
-                if (exp % 2n === 1n) res = (res * base) % mod;
-                base = (base * base) % mod;
-                exp /= 2n;
-            }
-            return res;
-        }
+      <!-- Batch Digit Generator (Right: 7 Cols) -->
+      <section class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-layer-group text-purple-400"></i>
+              <span>桁指定・全組み合わせ一括生成 & 探索</span>
+            </h2>
+            <span class="text-xs bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded-full">マルチセット処理</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">
+            指定した桁数のすべての数字パターン（重複を除く数字組合せ）を高速枝刈りアルゴリズムで一括計算します。
+          </p>
 
-        // 探索実行関数
-        function runSearch() {
-            const input = document.getElementById('numInput').value.trim();
-            if (!/^\d+$/.test(input) || input.length > 10 || input.length === 0) {
-                alert("1〜10桁の半角数字を入力してください。");
-                return;
-            }
-
-            const digits = input.split('');
-            const sum = digits.reduce((acc, d) => acc + parseInt(d), 0);
-
-            document.getElementById('resDigits').textContent = input;
-            document.getElementById('resSum').textContent = sum;
-            document.getElementById('resMod3').textContent = `mod 3 = ${sum % 3}`;
-
-            const box = document.getElementById('resultBox');
-            const resPrime = document.getElementById('resPrime');
-            box.classList.remove('hidden');
-
-            if (sum % 3 === 0 && digits.length > 1) {
-                resPrime.textContent = "なし (各桁の和が3の倍数のため素数は作れません)";
-                resPrime.className = "text-lg font-bold text-rose-600 mt-1";
-                return;
-            }
-
-            const perms = new Set();
-            generatePermutations(digits, "", perms);
-            const sortedPerms = Array.from(perms).map(BigInt).sort((a, b) => b > a ? 1 : -1);
-
-            let maxPrime = null;
-            for (let num of sortedPerms) {
-                if (isPrimeMR(num)) {
-                    maxPrime = num;
-                    break;
-                }
-            }
-
-            if (maxPrime) {
-                resPrime.textContent = maxPrime.toString();
-                resPrime.className = "text-2xl font-bold text-emerald-600 font-mono mt-1";
-            } else {
-                resPrime.textContent = "なし (並び替えで素数は作れませんでした)";
-                resPrime.className = "text-lg font-bold text-rose-600 mt-1";
-            }
-        }
-
-        function generatePermutations(arr, current, results) {
-            if (arr.length === 0) {
-                if (current[0] !== '0' && ['1','3','7','9'].includes(current[current.length - 1])) {
-                    results.add(current);
-                }
-                return;
-            }
-            for (let i = 0; i < arr.length; i++) {
-                const nextArr = arr.slice(0, i).concat(arr.slice(i + 1));
-                generatePermutations(nextArr, current + arr[i], results);
-            }
-        }
-    </script>
-</body>
-</html>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end mb-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">対象の桁数を選択 (1〜7桁)</label>
+              <select id="digitSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 font-semibold focus:outline-none focus:border-purple-500 transition">
+                <option value="1">1桁 (全10パターン)</option>
+                <option value="2">2桁 (全55
